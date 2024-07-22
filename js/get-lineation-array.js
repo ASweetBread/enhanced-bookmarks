@@ -54,7 +54,6 @@ function splitRange(node, startOffset, endOffset) {
   
   // 获取 range 某个字符位置的 DOMRect
   function getCharRect(node, offset) {
-    console.log('getCharRect',[node],[offset])
     const range = document.createRange()
     range.setStart(node, offset)
     range.setEnd(node, offset + 1 > node.textContent.length ? offset : offset + 1)

@@ -1,22 +1,5 @@
 console.log("content-script.js is running");
 
-
-/**
- * 剩余未完成的事
- * 1.笔记面板不触发记录事件
- * 2.笔记面板数据的二次编辑、删除功能 @完成
- * 3.笔记面板调整大小
- * 4.记录面板调整位置
- * 5.导出功能
- * 6.导入功能
- * 7.笔记打开 @完成
- * 8.划线位置、容器记录 @完成
- * 9.划线效果渲染 @完成
- * 10.点击划线打开笔记面板
- * 11.bug1：存储与获取节点时排除非文本节点
- * 12.适应页面大小变化
- */
-
 // setStorage(window.location.href, [])
 
 // 存储
@@ -38,28 +21,28 @@ async function getStorage(key) {
 	console.log(res,'res')
 	return res;
 }
-let arraySelection = [], notePanel = null, panel = null, mousePosition = { x:0,y:0 }, RenderLineation = lineationObj();
-getStorage(window.location.href).then(data =>{
+let arraySelection = [], notePanel = null, panel = null, mousePosition = { x:0,y:0 }, RenderLineation = lineationObj(), hrefGlobal = window.location.href;
+getStorage(hrefGlobal).then(data =>{
 	arraySelection = data
 	window.onload = function() {
 		// 笔记面板
 		notePanel = NotePanel(arraySelection)
+		// 记录面板
 		panel = Panel(0, 30, arraySelection);
+		// 划线效果渲染
 		RenderLineation.Render(arraySelection)
 	}
 	// 获取鼠标位置
 	document.addEventListener("mouseup", (event) => {
 		mousePosition.x = event.pageX;
 		mousePosition.y = event.pageY;
+		if(notePanel.getIsEditStatus() === true) {
+			alert("存在未保存的笔记，请先保存")
+			return
+		}
 
 		let selection = document.getSelection()
 		if(selection.toString().length > 0) {
-			// RenderLineation.RenderItem({
-			// 	startContainer: selection.getRangeAt(0).startContainer,
-			// 	startOffset: selection.getRangeAt(0).startOffset,
-			// 	endContainer: selection.getRangeAt(0).endContainer,
-			// 	endOffset: selection.getRangeAt(0).endOffset
-			// })
 			panel.appendPanel(selection.getRangeAt(0));
 		}
 	});
@@ -67,6 +50,7 @@ getStorage(window.location.href).then(data =>{
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 	if(request.action === "open") {
 		notePanel.panel.style.display = "block";
+		sendResponse('ok')
 	}
 })
 // {
@@ -83,10 +67,8 @@ function lineationObj() {
 
 	function findElement(startContainer) {
 		let findContainer = document.getElementById(startContainer.id)
-		console.log(startContainer.pathArray)
 		if(findContainer) {
 			startContainer.pathArray.forEach(index => {
-				console.log([findContainer],findContainer.childNodes, index, 'index')
 				findContainer = findContainer.childNodes[index]
 			})
 			return findContainer
@@ -186,7 +168,6 @@ function selectionObj(selection) {
 		}
 		const startContainer = findContainer(selection.startContainer)
 		const endContainer = findContainer(selection.endContainer)
-		console.log(startContainer, endContainer, 'container')
 		return { startContainer, endContainer }
 	}
 
@@ -263,7 +244,7 @@ function Panel(offsetX=0, offsetY=0) {
 			notePanel.insertNoteItem(item)
 			
 			arraySelection.push(item)
-			setStorage(window.location.href, arraySelection)
+			setStorage(hrefGlobal, arraySelection)
 			removePanel();
 		})
 		cancelButton.addEventListener("click", () => {
@@ -296,6 +277,7 @@ function Panel(offsetX=0, offsetY=0) {
 
 // 添加笔记面板
 function NotePanel(arraySelection) {
+	let isEdit = false;
 	const initNodePanel = () => {
 		const panel = document.createElement("div");
 		panel.style.position = "fixed";
@@ -357,10 +339,11 @@ function NotePanel(arraySelection) {
 			editButton.addEventListener("click", () => {
 				contentNormal.style.display = "none";
 				contentEdit.style.display = "block";
+				isEdit = true;
 			});
 			deleteButton.addEventListener("click", () => {
 				arraySelection.splice(arraySelection.findIndex(i => i.id === item.id), 1)
-				setStorage(window.location.href, arraySelection)
+				setStorage(hrefGlobal, arraySelection)
 				noteItem.remove()
 			});
 			saveButton.addEventListener("click", () => {
@@ -368,10 +351,12 @@ function NotePanel(arraySelection) {
 				contentEdit.style.display = "none";
 				contentNormal.style.display = "block";
 				textDiv.innerText = text;
+				isEdit = false;
 			});
 			cancelButton.addEventListener("click", () => {
 				contentEdit.style.display = "none";
 				contentNormal.style.display = "block";
+				isEdit = false;
 			});
 
 		}
@@ -412,27 +397,9 @@ function NotePanel(arraySelection) {
 	})
 
 	document.body.appendChild(panel)
-	return { panel, insertNoteItem }
+	return { panel, insertNoteItem, getIsEditStatus: () => isEdit }
 }
 
-
-// 获取划线的文字
-// const getSelectionText = function(selection) {
-// 	const a = selection.getRangeAt(0).getBoundingClientRect()
-// 	console.log(a, "selection")
-// 	const div = document.createElement("div");
-// 	div.style.position = "absolute";
-// 	div.style.left = a.left + "px";
-// 	div.style.top = a.top + "px";
-// 	div.style.width = a.width + "px";
-// 	div.style.height = a.height + "px";
-// 	div.style.backgroundColor = "rgba(0,0,0,0.3)";
-// 	div.style.zIndex = 99999;
-// 	// div.style.pointerEvents = "none";
-// 	document.body.appendChild(div);
-// 	console.log(selection.getRangeAt(0))
-// 	panel.appendPanel(selection.getRangeAt(0));
-// }
 
 
 
