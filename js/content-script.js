@@ -18,12 +18,18 @@ async function getStorage(key) {
 			}
 		});
 	})
-	console.log(res,'res')
-	return res;
+	const isFavorites = await new Promise((resolve, reject) => {
+		chrome.runtime.sendMessage({ action: "checkFavorites", url: key }, (response) => {
+			console.log(response,'response')
+			resolve(response.isFavorites)
+		});
+	})
+	
+	return { res, isFavorites };
 }
 let arraySelection = [], notePanel = null, panel = null, mousePosition = { x:0,y:0 }, RenderLineation = lineationObj(), hrefGlobal = window.location.href;
 getStorage(hrefGlobal).then(data =>{
-	arraySelection = data
+	arraySelection = data.res;
 	window.onload = function() {
 		// 笔记面板
 		notePanel = NotePanel(arraySelection)
@@ -36,20 +42,27 @@ getStorage(hrefGlobal).then(data =>{
 	document.addEventListener("mouseup", (event) => {
 		mousePosition.x = event.pageX;
 		mousePosition.y = event.pageY;
-		if(notePanel.getIsEditStatus() === true) {
-			alert("存在未保存的笔记，请先保存")
-			return
-		}
-
+		
 		let selection = document.getSelection()
-		if(selection.toString().length > 0) {
-			panel.appendPanel(selection.getRangeAt(0));
+		switch (true) {
+			case !data.isFavorites:
+				return
+			case notePanel.getIsEditStatus():
+				alert("存在未保存的笔记，请先保存")
+				return
+			case selection.toString().length > 0:
+				panel.appendPanel(selection.getRangeAt(0));
 		}
 	});
 })
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 	if(request.action === "open") {
 		notePanel.panel.style.display = "block";
+		sendResponse('ok')
+	}
+	console.log(request.action)
+	if(request.action === "status") {
+		isFavorites = request.status
 		sendResponse('ok')
 	}
 })
