@@ -35,7 +35,7 @@
 	[
 		{
 			"matches": ["http://*/*", "https://*/*"],
-			"js": ["js/get-lineation-array.js", "js/content-script.js"],
+			"js": ["js/get-node.js", "js/get-lineation-array.js", "js/content-script.js"],
 			"css": ["css/custom.css"],
             "run_at": "document_end"
 		}

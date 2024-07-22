@@ -17,7 +17,7 @@ console.log("content-script.js is running");
  * 12.适应页面大小变化
  */
 
-setStorage(window.location.href, [])
+// setStorage(window.location.href, [])
 
 // 存储
 function setStorage(key, value) {
@@ -41,11 +41,12 @@ async function getStorage(key) {
 let arraySelection = [], notePanel = null, panel = null, mousePosition = { x:0,y:0 }, RenderLineation = lineationObj();
 getStorage(window.location.href).then(data =>{
 	arraySelection = data
-	console.log(arraySelection, 'arraySelection')
-	// 笔记面板
-	notePanel = NotePanel(arraySelection)
-	panel = Panel(0, 30, arraySelection);
-	RenderLineation.Render(arraySelection)
+	window.onload = function() {
+		// 笔记面板
+		notePanel = NotePanel(arraySelection)
+		panel = Panel(0, 30, arraySelection);
+		RenderLineation.Render(arraySelection)
+	}
 	// 获取鼠标位置
 	document.addEventListener("mouseup", (event) => {
 		mousePosition.x = event.pageX;
@@ -82,8 +83,10 @@ function lineationObj() {
 
 	function findElement(startContainer) {
 		let findContainer = document.getElementById(startContainer.id)
+		console.log(startContainer.pathArray)
 		if(findContainer) {
 			startContainer.pathArray.forEach(index => {
+				console.log([findContainer],findContainer.childNodes, index, 'index')
 				findContainer = findContainer.childNodes[index]
 			})
 			return findContainer
@@ -125,7 +128,6 @@ function lineationObj() {
 	function RenderItem(item) {
 		if(item.startContainer && item.endContainer) {
 			const rangeArray = getLineationArray(item)
-			console.log(rangeArray, 'rangeArray')
 
 			const lineationArray = rangeArray.map(range => {
 				const rect = range.getBoundingClientRect()
@@ -141,9 +143,7 @@ function lineationObj() {
 				lineation.style.top = `${rect.top + ( document.body.scrollTop || document.documentElement.scrollTop || 0 ) }px`;
 				lineation.style.width = `${rect.width}px`;
 				lineation.style.height = `${rect.height}px`;
-				console.log(rect.top,  document.body.scrollTop || document.documentElement.scrollTop || 0, rect.top + document.body.scrollTop || document.documentElement.scrollTop || 0 ,'rect')
 				document.body.appendChild(lineation);
-				console.log(lineation, 'lineation')
 				return lineation
 			})
 			
@@ -173,7 +173,7 @@ function selectionObj(selection) {
 				if(currentNode === node) {
 					currentNode = undefined
 					if(parentNode.id) {
-						return { id: parentNode.id, pathArray }
+						return { id: parentNode.id, pathArray: pathArray.reverse() }
 					}else {
 						return findContainer(parentNode, pathArray)
 					}
@@ -186,6 +186,7 @@ function selectionObj(selection) {
 		}
 		const startContainer = findContainer(selection.startContainer)
 		const endContainer = findContainer(selection.endContainer)
+		console.log(startContainer, endContainer, 'container')
 		return { startContainer, endContainer }
 	}
 
@@ -247,7 +248,6 @@ function Panel(offsetX=0, offsetY=0) {
 			endContainer: selectionInner.endContainer,
 			endOffset: selectionInner.endOffset
 		})
-		console.log(lineations, 'lineations')
 		button.addEventListener("click", () => {
 			const selectionobj = selectionObj(selectionInner);
 			const item = {

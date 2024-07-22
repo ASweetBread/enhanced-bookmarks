@@ -3,28 +3,18 @@ console.log("get-lineation-array.js is running");
 // 获取选中区域的行内范围数组
 function getLineationArray(item) {
   const { startContainer, endContainer, startOffset, endOffset } = item
-  let currentItem = { 
-    container: startContainer, 
-    startOffset: startOffset, 
-    endOffset: startContainer === endContainer? endOffset : startContainer.length 
-  }, rangeArray = []
-  while (currentItem.container !== endContainer.nextSibling) {
+  const nodeArray = getTextNodesByDfs(startContainer,endContainer)
+  let rangeArray = []
+  for (let i = 0; i < nodeArray.length; i++) {
+    let currentItem = { 
+      container: nodeArray[i], 
+      startOffset: i === 0? startOffset : 0, 
+      endOffset: nodeArray[i] === nodeArray[nodeArray.length - 1]? endOffset : nodeArray[i].length 
+    }
     const rangesCurrent = splitRange(currentItem.container, currentItem.startOffset, currentItem.endOffset)
     rangeArray.push(...rangesCurrent)
-    let nextContainer = currentItem.container.nextSibling
-    console.log('nextContainer',[nextContainer], [endContainer])
-    currentItem = { 
-      container: nextContainer, 
-      startOffset: 0, 
-      endOffset: nextContainer && ( nextContainer === endContainer? endOffset : nextContainer.textContent.length )
-    }
   }
   return rangeArray
-}
-// 获取选中区域的文本节点数组
-function getTextNodeList(item) {
-  const { startContainer, endContainer, startOffset, endOffset } = item
-  
 }
 
 // 将一个跨行的 range 切割为多个不跨行的 range
