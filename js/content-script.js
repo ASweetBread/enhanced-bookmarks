@@ -21,10 +21,10 @@ async function getStorage(key) {
 	const isFavorites = await new Promise((resolve, reject) => {
 		chrome.runtime.sendMessage({ action: "checkFavorites", url: key }, (response) => {
 			console.log(response,'response')
-			resolve(response.isFavorites)
+			resolve(response)
 		});
 	})
-	
+	console.log(res,'res',isFavorites,'isFavorites')
 	return { res, isFavorites };
 }
 let arraySelection = [], notePanel = null, panel = null, mousePosition = { x:0,y:0 }, RenderLineation = lineationObj(), hrefGlobal = window.location.href;
@@ -44,7 +44,10 @@ getStorage(hrefGlobal).then(data =>{
 		mousePosition.y = event.pageY;
 		
 		let selection = document.getSelection()
+		console.log(!data.isFavorites,'!data.isFavorites',notePanel.getIsEditStatus(),'notePanel.getIsEditStatus()',selection.toString().length > 0,'selection.toString().length > 0')
 		switch (true) {
+			case panel.getPanelStatus():
+				return
 			case !data.isFavorites:
 				return
 			case notePanel.getIsEditStatus():
@@ -56,6 +59,7 @@ getStorage(hrefGlobal).then(data =>{
 	});
 })
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+	console.log(request, 'request')
 	if(request.action === "open") {
 		notePanel.panel.style.display = "block";
 		sendResponse('ok')
@@ -78,12 +82,31 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 function lineationObj() {
 	let lineations = [];
 
-	function findElement(startContainer) {
+	async function findElement(startContainer) {
 		let findContainer = document.getElementById(startContainer.id)
 		if(findContainer) {
-			startContainer.pathArray.forEach(index => {
-				findContainer = findContainer.childNodes[index]
-			})
+			await new Promise(async (resolve, reject) => {
+				for (let i in startContainer.pathArray ) {
+					console.log('start', i ,[findContainer.childNodes[startContainer.pathArray[i]]])
+					if(!findContainer.childNodes[startContainer.pathArray[i]]) {
+						await new Promise((resolve, reject) => {
+							const observer = new MutationObserver(() => {
+								console.log('observer middle', i)
+								resolve()
+								observer.disconnect()
+							})
+							observer.observe(findContainer, { childList: true })
+						})
+					}
+					findContainer = findContainer.childNodes[startContainer.pathArray[i]]
+					if(Number(i) === startContainer.pathArray.length - 1) {
+						console.log('resolve', i)
+						resolve()
+					}
+					console.log('end', i)
+				}
+			}) 
+			console.log('return findContainer', [findContainer])
 			return findContainer
 		}
 	}
@@ -107,9 +130,11 @@ function lineationObj() {
 			removeLineation()
 		}
 		
-		lineations = arraySelection.map(item => {
-			const startContainer = findElement(item.container.startContainer)
-			const endContainer = findElement(item.container.endContainer)
+		lineations = arraySelection.map(async item => {
+			console.log('RenderItem Start')
+			const startContainer = await findElement(item.container.startContainer)
+			const endContainer = await findElement(item.container.endContainer)
+			console.log('RenderItem End')
 			return RenderItem({
 				startContainer: startContainer,
 				startOffset: item.startOffset,
@@ -117,10 +142,10 @@ function lineationObj() {
 				endOffset: item.endOffset
 			})
 		})
-		return lineations
 	}
 	// 渲染器
 	function RenderItem(item) {
+		console.log(item, 'item')
 		if(item.startContainer && item.endContainer) {
 			const rangeArray = getLineationArray(item)
 
@@ -168,6 +193,7 @@ function selectionObj(selection) {
 				if(currentNode === node) {
 					currentNode = undefined
 					if(parentNode.id) {
+						console.log(pathArray, 'pathArray')
 						return { id: parentNode.id, pathArray: pathArray.reverse() }
 					}else {
 						return findContainer(parentNode, pathArray)
@@ -194,6 +220,10 @@ function Panel(offsetX=0, offsetY=0) {
 	panel.style.position = "absolute";
 	panel.style.zIndex = 99999;
 	panel.className = "selection-panel";
+
+	const getPanelStatus = () => {
+		return panel.style.display === "block"
+	}
 
 	const appendPanel = (selection) => {
 		panel.style.display = "block";
@@ -285,7 +315,7 @@ function Panel(offsetX=0, offsetY=0) {
 	panel.appendChild(recordPanel);
 	document.body.appendChild(panel);
 
-	return { panel, appendPanel, removePanel };
+	return { panel, appendPanel, removePanel, getPanelStatus };
 }
 
 // 添加笔记面板
@@ -322,11 +352,12 @@ function NotePanel(arraySelection) {
 			const noteItem = document.createElement("div");
 			noteItem.className = "__note-item";
 			noteItem.innerHTML = `
-				<div class="__note-item-title">“${item.selection}”</div>
+				<h3 class="__note-item-title" id="__note-item-title-${item.id}">“${item.selection}”</h3>
 				<div class="__note-item-content-normal" id="__note-item-content-normal-${item.id}">
-					<div class="__note-item-content-text" id="__note-item-content-text-${item.id}">${item.text}</div>
+					<pre class="__note-item-content-text" id="__note-item-content-text-${item.id}">${item.text}</pre>
 					<div class="__note-item-buttons">
 						<button class="text-button __edit-button" id="__edit-button-${item.id}">编辑</button>
+						<button class="text-button __copy-button" id="__copy-button-${item.id}">复制</button>
 						<button class="text-button __delete-button" id="__delete-button-${item.id}">删除</button>
 					</div>
 				</div>
@@ -345,7 +376,9 @@ function NotePanel(arraySelection) {
 			const deleteButton = panel.querySelector(`#__delete-button-${item.id}`);
 			const saveButton = panel.querySelector(`#__save-button-${item.id}`);
 			const cancelButton = panel.querySelector(`#__cancel-button-${item.id}`);
+			const copyButton = panel.querySelector(`#__copy-button-${item.id}`);
 			const textarea = panel.querySelector(`#__note-textarea-${item.id}`);
+			const textTitle = panel.querySelector(`#__note-item-title-${item.id}`);
 			const textDiv = panel.querySelector(`#__note-item-content-text-${item.id}`);
 			const contentNormal = panel.querySelector(`#__note-item-content-normal-${item.id}`);
 			const contentEdit = panel.querySelector(`#__note-item-content-edit-${item.id}`);
@@ -371,6 +404,27 @@ function NotePanel(arraySelection) {
 				contentNormal.style.display = "block";
 				isEdit = false;
 			});
+			copyButton.addEventListener("click", () => {
+				const blobHtml = new Blob([textTitle.outerHTML,textDiv.outerHTML], { type: 'text/html' });
+				const blobText = new Blob([textTitle.innerText,textDiv.innerText], { type: 'text/plain' });
+
+				const data = [new ClipboardItem({ 
+					'text/html': blobHtml,
+					'text/plain': blobText
+				})];
+				navigator.clipboard.write(data).then((res) => {
+					askNotificationPermission().then((res)=>{
+						if(res) {
+							const notification = new Notification("复制成功", {
+								body: `${textTitle.innerText.trim()}\n${textDiv.innerText.trim()}`
+							})
+						}else {
+							alert("复制成功")
+						}
+					})
+				})
+				
+			})
 
 		}
 		arraySelection.forEach(item => {

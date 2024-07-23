@@ -5,7 +5,7 @@ chrome.contextMenus.create({
 
 
 chrome.contextMenus.onClicked.addListener(function(info, tab) {
-    chrome.tabs.sendMessage(tab, {
+    chrome.tabs.sendMessage(tab.id, {
         action: "open"
     }, function(response) {
         console.log(response);
@@ -17,7 +17,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log("checkFavorites", request.url);
         isFavoritesPage(request.url).then(sendResponse)
     }
-    return true
+    return true // 必须返回true，告诉浏览器你需要异步返回结果
 });
 function isFavoritesPage(url) {
     const currentUrl = url;

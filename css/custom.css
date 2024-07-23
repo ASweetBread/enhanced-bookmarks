@@ -79,8 +79,8 @@
 	height: 0;
 	flex: 1;
 	overflow: auto;
-	margin: 10px 0;
-    padding: 0 10px;
+	margin: 0 0 10px 0;
+    padding: 10px 10px 0 10px;
 }
 .__note-content::-webkit-scrollbar {
 	width: 4px;
@@ -100,11 +100,13 @@
 .__note-item-title {
 	font-size: 16px;
     margin-bottom: 5px;
+	margin-top: 0px;
     color: dimgray;
 }
 .__note-item-content-text {
 	font-size: 14px;
 	line-height: 1.5;
+	white-space: break-spaces;
 }
 .__note-item-buttons {
     opacity: 0;
