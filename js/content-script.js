@@ -243,7 +243,7 @@ function Panel(offsetX=0, offsetY=0) {
 	let selectionInner = null, timeout = null;
 	const panel = document.createElement("div");
 	panel.style.position = "absolute";
-	panel.style.zIndex = 99999;
+	panel.style.zIndex = 999999;
 	panel.className = "selection-panel";
 
 	const getPanelStatus = () => {
@@ -281,7 +281,7 @@ function Panel(offsetX=0, offsetY=0) {
 		const tip = selectionInner.toString();
 		recordPanel.innerHTML = `
 		<pre class="__bookmark-tip">${tip}</pre>
-		<textarea id="__bookmark-textarea" placeholder="请输入备注"></textarea>
+		<textarea id="__bookmark-textarea" class="__note-item-content-text __bookmark-content-textarea" placeholder="请输入备注"></textarea>
 		<div class="__bookmark-buttons">
 			<button id="__bookmark-button">添加</button>
 			<button id="__cancel-button">取消</button>
@@ -290,6 +290,30 @@ function Panel(offsetX=0, offsetY=0) {
 		const textarea = recordPanel.querySelector("#__bookmark-textarea");
 		const button = recordPanel.querySelector("#__bookmark-button");
 		const cancelButton = recordPanel.querySelector("#__cancel-button");
+		const tipDiv = panel.querySelector(".__bookmark-tip");
+
+		// 随着输入框高度变化自动调整高度
+		const resizeTextarea = delay(() => {
+			textarea.style.height = textarea.scrollHeight + "px";
+		}, 300)
+		textarea.addEventListener("input", resizeTextarea)
+
+		nodeMoveEvent(tipDiv, (e)=>{
+			console.log('movedown')
+			const startX = e.clientX;
+			const startY = e.clientY;
+			const panelStartX = panel.offsetLeft;
+			const panelStartY = panel.offsetTop;
+			return move = (event) => {
+				console.log('move')
+				const endX = event.clientX;
+				const endY = event.clientY;
+				const offsetX = endX - startX;
+				const offsetY = endY - startY;
+				panel.style.left = `${panelStartX + offsetX}px`;
+				panel.style.top = `${panelStartY + offsetY}px`;
+			}
+		})
 
 		const lineations = RenderLineation.RenderItem({
 			startContainer: selectionInner.startContainer,
@@ -351,7 +375,7 @@ function NotePanel(arraySelection) {
 		panel.style.position = "fixed";
 		panel.style.left = "0px";
 		panel.style.top = "0px";
-		panel.style.zIndex = 99999;
+		panel.style.zIndex = 999999;
 		panel.style.width = "300px";
 		panel.style.height = "400px";
 		panel.style.backgroundColor = "#fff";
@@ -519,12 +543,11 @@ function NotePanel(arraySelection) {
 }
 
 
-
-
 // 防抖函数
 function delay(fn, delay=100) {
 	let timer = null;
 	return function (...args) {
+		console.log('timer')
 		if(timer) {
 			clearTimeout(timer)
 			timer = null;
