@@ -20,7 +20,6 @@ async function getStorage(key) {
 	})
 	const isFavorites = await new Promise((resolve, reject) => {
 		chrome.runtime.sendMessage({ action: "checkFavorites", url: key }, (response) => {
-			console.log(response,'response')
 			resolve(response)
 		});
 	})
@@ -36,7 +35,12 @@ getStorage(hrefGlobal).then(data =>{
 		// 记录面板
 		panel = Panel(0, 30, arraySelection);
 		// 划线效果渲染
-		RenderLineation.Render(arraySelection)
+		const renderAll = delay(RenderLineation.Render, 500) // 防抖渲染
+		ObserverHeightChange(renderAll, arraySelection) // 高度变化重新渲染
+		document.addEventListener("resize", () => { // 窗口大小变化重新渲染
+			renderAll(arraySelection)
+		})
+
 	}
 	// 获取鼠标位置
 	document.addEventListener("mouseup", (event) => {
@@ -44,27 +48,57 @@ getStorage(hrefGlobal).then(data =>{
 		mousePosition.y = event.pageY;
 		
 		let selection = document.getSelection()
-		console.log(!data.isFavorites,'!data.isFavorites',notePanel.getIsEditStatus(),'notePanel.getIsEditStatus()',selection.toString().length > 0,'selection.toString().length > 0')
 		switch (true) {
+			// 记录面板显示
 			case panel.getPanelStatus():
 				return
+			// 页面是否收藏
 			case !data.isFavorites:
-				return
-			case notePanel.getIsEditStatus():
-				alert("存在未保存的笔记，请先保存")
-				return
+				return	
+			// 是否有选中文本
 			case selection.toString().length > 0:
-				panel.appendPanel(selection.getRangeAt(0));
+				// 笔记面板是否编辑状态
+				if(!notePanel.getIsEditStatus()) {
+					panel.appendPanel(selection.getRangeAt(0));
+					return
+				}
 		}
 	});
 })
+
+function ObserverHeightChange(callback, args) {
+	switch (true) {
+		case Boolean(ResizeObserver):
+			const resizeObserver = new ResizeObserver(() => {
+				callback(args)
+				// resizeObserver.disconnect()
+			})
+			resizeObserver.observe(document.body)
+			return
+		case Boolean(MutationObserver):
+			const mutationObserver = new MutationObserver(() => {
+				callback(args)
+				// mutationObserver.disconnect()
+			})
+			mutationObserver.observe(document.body, { childList: true, subtree: true })
+			return
+		default:
+			let lastHeight = document.body.clientHeight
+			let interver = setInterval(()=>{
+				const height = document.body.clientHeight
+				if(height !== lastHeight) {
+					lastHeight = height
+					callback(args)
+				}
+			},500)
+	}
+}
+
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-	console.log(request, 'request')
 	if(request.action === "open") {
 		notePanel.panel.style.display = "block";
 		sendResponse('ok')
 	}
-	console.log(request.action)
 	if(request.action === "status") {
 		isFavorites = request.status
 		sendResponse('ok')
@@ -87,11 +121,9 @@ function lineationObj() {
 		if(findContainer) {
 			await new Promise(async (resolve, reject) => {
 				for (let i in startContainer.pathArray ) {
-					console.log('start', i ,[findContainer.childNodes[startContainer.pathArray[i]]])
 					if(!findContainer.childNodes[startContainer.pathArray[i]]) {
 						await new Promise((resolve, reject) => {
 							const observer = new MutationObserver(() => {
-								console.log('observer middle', i)
 								resolve()
 								observer.disconnect()
 							})
@@ -100,13 +132,10 @@ function lineationObj() {
 					}
 					findContainer = findContainer.childNodes[startContainer.pathArray[i]]
 					if(Number(i) === startContainer.pathArray.length - 1) {
-						console.log('resolve', i)
 						resolve()
 					}
-					console.log('end', i)
 				}
 			}) 
-			console.log('return findContainer', [findContainer])
 			return findContainer
 		}
 	}
@@ -130,22 +159,19 @@ function lineationObj() {
 			removeLineation()
 		}
 		
-		lineations = arraySelection.map(async item => {
-			console.log('RenderItem Start')
+		arraySelection.map(async item => {
 			const startContainer = await findElement(item.container.startContainer)
 			const endContainer = await findElement(item.container.endContainer)
-			console.log('RenderItem End')
-			return RenderItem({
+			lineations.push(...RenderItem({
 				startContainer: startContainer,
 				startOffset: item.startOffset,
 				endContainer: endContainer,
 				endOffset: item.endOffset
-			})
+			})) 
 		})
 	}
 	// 渲染器
 	function RenderItem(item) {
-		console.log(item, 'item')
 		if(item.startContainer && item.endContainer) {
 			const rangeArray = getLineationArray(item)
 
@@ -193,7 +219,6 @@ function selectionObj(selection) {
 				if(currentNode === node) {
 					currentNode = undefined
 					if(parentNode.id) {
-						console.log(pathArray, 'pathArray')
 						return { id: parentNode.id, pathArray: pathArray.reverse() }
 					}else {
 						return findContainer(parentNode, pathArray)
@@ -343,10 +368,10 @@ function NotePanel(arraySelection) {
 			</div>
 			<div class="__note-content">
 			</div>
+			<div class="__note-item-zoom" ></div>
 		</div>
 		`
 		const contentDiv = panel.querySelector(".__note-content");
-		
 
 		const noteItemInit = (item) => {
 			const noteItem = document.createElement("div");
@@ -362,7 +387,7 @@ function NotePanel(arraySelection) {
 					</div>
 				</div>
 				<div class="__note-item-content-edit" id="__note-item-content-edit-${item.id}" style="display:none">
-					<textarea id="__note-textarea-${item.id}" placeholder="请输入备注">${item.text}</textarea>
+					<textarea class="__note-item-content-text" id="__note-textarea-${item.id}" placeholder="请输入备注">${item.text}</textarea>
 					<div class="__note-item-buttons edit-buttons">
 						<button class="text-button __save-button" id="__save-button-${item.id}">保存</button>
 						<button class="text-button __cancel-button" id="__cancel-button-${item.id}">取消</button>
@@ -383,6 +408,7 @@ function NotePanel(arraySelection) {
 			const contentNormal = panel.querySelector(`#__note-item-content-normal-${item.id}`);
 			const contentEdit = panel.querySelector(`#__note-item-content-edit-${item.id}`);
 			editButton.addEventListener("click", () => {
+				textarea.style.height = textDiv.offsetHeight + "px";
 				contentNormal.style.display = "none";
 				contentEdit.style.display = "block";
 				isEdit = true;
@@ -397,6 +423,8 @@ function NotePanel(arraySelection) {
 				contentEdit.style.display = "none";
 				contentNormal.style.display = "block";
 				textDiv.innerText = text;
+				item.text = text;
+				setStorage(hrefGlobal, arraySelection)
 				isEdit = false;
 			});
 			cancelButton.addEventListener("click", () => {
@@ -438,6 +466,29 @@ function NotePanel(arraySelection) {
 		noteItemInit(item)
 	}
 	
+	const zoomDiv = panel.querySelector(".__note-item-zoom");
+	let zoomFunction = null
+	zoomDiv.addEventListener("mousedown",(e)=> {
+		const startX = e.clientX;
+		const startY = e.clientY;
+		const startWidth = panel.offsetWidth;
+		const startHeight = panel.offsetHeight;
+		zoomFunction = (e)=>{
+			const endX = e.clientX;
+			const endY = e.clientY;
+			const width = endX - startX;
+			const height = endY - startY;
+			panel.style.width = `${startWidth + width}px`;
+			panel.style.height = `${startHeight + height}px`;
+		}
+		document.addEventListener('mousemove',zoomFunction)
+	})
+	zoomDiv.addEventListener('mouseup',(e)=>{
+		console.log(zoomFunction,'mouseup')
+		document.removeEventListener('mousemove',zoomFunction)
+		zoomFunction = null
+	})
+
 	const closeButton = panel.querySelector("#__close-note-button");
 	closeButton.addEventListener("click", () => {
 		panel.style.display = "none";
@@ -470,7 +521,7 @@ function NotePanel(arraySelection) {
 
 
 
-// 延时函数
+// 防抖函数
 function delay(fn, delay=100) {
 	let timer = null;
 	return function (...args) {

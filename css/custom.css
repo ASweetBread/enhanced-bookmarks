@@ -73,6 +73,10 @@
 	display: flex;
 	flex-direction: column; 
 	user-select: none;
+	position: relative;
+}
+.__note-item-zoom {
+	cursor: nwse-resize;
 }
 
 .__note-content {
@@ -96,6 +100,13 @@
 .__note-item:hover .__note-item-buttons {
     opacity: 1;
 }
+.__note-item-zoom {
+	position: absolute;
+	width: 20px;
+	height: 20px;
+	bottom: 0;
+	right: 0;
+}
 
 .__note-item-title {
 	font-size: 16px;
@@ -107,6 +118,8 @@
 	font-size: 14px;
 	line-height: 1.5;
 	white-space: break-spaces;
+	padding: 0;
+	box-sizing: content-box;
 }
 .__note-item-buttons {
     opacity: 0;
