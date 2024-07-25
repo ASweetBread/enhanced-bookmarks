@@ -120,6 +120,8 @@
 	white-space: break-spaces;
 	padding: 0;
 	box-sizing: content-box;
+	margin: 0;
+	overflow: hidden;
 }
 .__bookmark-content-textarea {
 	min-height: 45px;

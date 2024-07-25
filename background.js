@@ -1,19 +1,17 @@
-chrome.contextMenus.create({
-    id: "open-favorites-notes",
-    title: "打开收藏夹笔记",
-});
+import { CONTEXTMENUS, SENDERMESSAGE } from './js/util/constant.js'
 
+chrome.contextMenus.create(CONTEXTMENUS);
 
 chrome.contextMenus.onClicked.addListener(function(info, tab) {
     chrome.tabs.sendMessage(tab.id, {
-        action: "open"
+        action: SENDERMESSAGE.OPEN
     }, function(response) {
         console.log(response);
     });
 })
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "checkFavorites") {
+    if (request.action === SENDERMESSAGE.CHECKFAVORITES) {
         console.log("checkFavorites", request.url);
         isFavoritesPage(request.url).then(sendResponse)
     }

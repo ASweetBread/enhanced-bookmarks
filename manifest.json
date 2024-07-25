@@ -17,9 +17,7 @@
 	// 会一直常驻的后台JS或后台页面
 	"background":
 	{
-		// 2种指定方式，如果指定JS，那么会自动生成一个背景页
-		// "page": "background.html"
-		"service_worker": "js/background.js",
+		"service_worker": "background.js",
         "type": "module"
 	},
 	// 浏览器右上角图标设置，browser_action、page_action、app必须三选一
@@ -35,9 +33,26 @@
 	[
 		{
 			"matches": ["http://*/*", "https://*/*"],
-			"js": ["js/util.js","js/get-node.js", "js/get-lineation-array.js", "js/content-script.js"],
+			"js": [
+				"js/util/storage.js",
+				"js/util/util.js",
+				"js/util/get-node.js", 
+				"js/util/get-lineation-array.js",
+				"js/obj/lineation.js",
+				"js/obj/note-panel.js",
+				"js/obj/panel.js",
+				"js/content-script.js"
+			],
 			"css": ["css/custom.css"],
             "run_at": "document_end"
+		}
+	],
+	"web_accessible_resources": [
+		{
+			"resources": [
+				"js/util/constant.js"
+			],
+			"matches": ["http://*/*", "https://*/*"]
 		}
 	],
 	// 权限申请
